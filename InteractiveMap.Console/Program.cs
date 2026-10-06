@@ -1,12 +1,35 @@
 ﻿using InteractiveMap.Console.Models;
 using InteractiveMap.Console.Services;
 
-MapService mapService = new MapService();
+MapService mapService = MapService.Instance;
 
 // 1. Добавление точек
-PointOfInterest park = mapService.AddPoi("Центральный парк", new Coordinate(55.7601, 37.6184));
-PointOfInterest cafe = mapService.AddPoi("Кофейня на углу", new Coordinate(55.7612, 37.6205));
-PointOfInterest museum = mapService.AddPoi("Музей истории", new Coordinate(55.7580, 37.6150));
+PointOfInterest park = mapService.AddPoi(
+    new PointOfInterestBuilder()
+        .WithName("Центральный парк")
+        .WithCoordinate(new Coordinate(55.7601, 37.6184))
+        .WithCategory("Парк")
+        .WithDescription("Главный городской парк")
+        .WithRating(4.7)
+        .WithOpeningHours("круглосуточно")
+        .Build());
+
+PointOfInterest cafe = mapService.AddPoi(
+    new PointOfInterestBuilder()
+        .WithName("Кофейня на углу")
+        .WithCoordinate(new Coordinate(55.7612, 37.6205))
+        .WithCategory("Кафе")
+        .WithRating(4.3)
+        .WithOpeningHours("08:00–22:00")
+        .Build());
+
+PointOfInterest museum = mapService.AddPoi(
+    new PointOfInterestBuilder()
+        .WithName("Музей истории")
+        .WithCoordinate(new Coordinate(55.7580, 37.6150))
+        .WithCategory("Музей")
+        .WithRating(4.9)
+        .Build());
 
 Console.WriteLine("Все точки");
 foreach (PointOfInterest p in mapService.All)
@@ -30,7 +53,11 @@ Console.WriteLine("\nПроверка валидации, добавление �
 
 try
 {
-    mapService.AddPoi("Ошибка", new Coordinate(100, 0));
+    mapService.AddPoi(
+        new PointOfInterestBuilder()
+        .WithName("Проверка ошибки")
+        .WithCoordinate(new Coordinate(100, 0))
+        .Build());
 }
 
 catch (Exception ex)

@@ -10,24 +10,32 @@ public sealed class MapService
 
     public IReadOnlyList<PointOfInterest> All => _pois;
 
-    public PointOfInterest AddPoi(string name, Coordinate coordinate)
+    private static readonly Lazy<MapService> _instance =
+        new(() => new MapService(), isThreadSafe: true);
+
+    public static MapService Instance => _instance.Value;
+
+    private MapService() { }
+
+    public PointOfInterest AddPoi(PointOfInterest poi)
     {
-        if (string.IsNullOrWhiteSpace(name))
-            throw new ArgumentException("Имя точки не может быть пустым", nameof(name));
+        if (poi is null)
+            throw new ArgumentException("Переданная точка по интересам не может быть пустой", nameof(poi));
 
-        if (coordinate is null)
-            throw new InvalidOperationException($"Параметр {nameof(coordinate)} имеет значение null");
-
-        PointOfInterest poi = new PointOfInterest
+        PointOfInterest result = new()
         {
             Id = _nextId++,
-            Name = name.Trim(),
-            Coordinate = coordinate
+            Name = poi.Name,
+            Coordinate = poi.Coordinate,
+            Description = poi.Description,
+            Category = poi.Category,
+            Rating = poi.Rating,
+            OpeningHours = poi.OpeningHours
         };
 
-        _pois.Add(poi);
+        _pois.Add(result);
 
-        return poi;
+        return result;
     }
 
     public bool RemovePoi(int id) => _pois.RemoveAll(p => p.Id == id) > 0;

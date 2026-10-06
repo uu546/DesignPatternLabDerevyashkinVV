@@ -1,3 +1,4 @@
 <Solution>
+  <Folder Name="/Patterns/" />
   <Project Path="InteractiveMap.Console/InteractiveMap.Console.csproj" Id="5c8d2328-f5d7-447f-bdcf-ce65a81ff6ec" />
 </Solution>
