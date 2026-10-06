@@ -21,7 +21,7 @@ public sealed class MapService
     {
         if (poi is null)
             throw new ArgumentException("Переданная точка по интересам не может быть пустой", nameof(poi));
-
+      
         PointOfInterest result = new()
         {
             Id = _nextId++,
