@@ -1,5 +1,7 @@
 ﻿using InteractiveMap.Console.Adapters;
 using InteractiveMap.Console.Bridge;
+using InteractiveMap.Console.Composite;
+using InteractiveMap.Console.Decorator;
 using InteractiveMap.Console.Factories;
 using InteractiveMap.Console.Models;
 using InteractiveMap.Console.Services;
@@ -111,39 +113,87 @@ void Lab2AbstractFactory()
 
 //Lab2AbstractFactory();
 
-// --- Lab2: фабрики создают продукты ---
-IMapFactory touristFactory = new TouristMapFactory();
-IMapFactory foodFactory = new FoodMapFactory();
-
-IPointOfInterest park = touristFactory.CreatePoi("Центральный парк", new Coordinate(55.7601, 37.6184));
-IPointOfInterest museum = touristFactory.CreatePoi("Музей истории", new Coordinate(55.7580, 37.6150));
-IPointOfInterest cafe = foodFactory.CreatePoi("Кофейня на углу", new Coordinate(55.7612, 37.6205));
-
-// Lab2: адаптер
-mapService.AddPoi(new PointOfInterestAdapter(park).ToPointOfInterest());
-mapService.AddPoi(new PointOfInterestAdapter(museum).ToPointOfInterest());
-mapService.AddPoi(new PointOfInterestAdapter(cafe).ToPointOfInterest());
-
-System.Console.WriteLine("Реестр MapService:");
-foreach (PointOfInterest p in mapService.All)
+void Lab3()
 {
-    System.Console.WriteLine(p);
+
+    // --- Lab2: фабрики создают продукты ---
+    IMapFactory touristFactory = new TouristMapFactory();
+    IMapFactory foodFactory = new FoodMapFactory();
+
+    IPointOfInterest park = touristFactory.CreatePoi("Центральный парк", new Coordinate(55.7601, 37.6184));
+    IPointOfInterest museum = touristFactory.CreatePoi("Музей истории", new Coordinate(55.7580, 37.6150));
+    IPointOfInterest cafe = foodFactory.CreatePoi("Кофейня на углу", new Coordinate(55.7612, 37.6205));
+
+    // Lab2: адаптер
+    mapService.AddPoi(new PointOfInterestAdapter(park).ToPointOfInterest());
+    mapService.AddPoi(new PointOfInterestAdapter(museum).ToPointOfInterest());
+    mapService.AddPoi(new PointOfInterestAdapter(cafe).ToPointOfInterest());
+
+    System.Console.WriteLine("Реестр MapService:");
+    foreach (PointOfInterest p in mapService.All)
+    {
+        System.Console.WriteLine(p);
+    }
+
+    // --- Lab3 (Bridge): комбинируем Вид карты × Способ отрисовки ---
+    System.Console.WriteLine("\n----- Комбинация 1: TouristicMap + ConsoleRenderer -----");
+    Map touristicConsole = new TouristicMap(new ConsoleRenderer());
+    touristicConsole.AddPoint(park);
+    touristicConsole.AddPoint(museum);
+    touristicConsole.Draw();
+
+    System.Console.WriteLine("\n----- Комбинация 2: FoodMap + GraphicsWindowRenderer -----");
+    Map foodGraphics = new FoodMap(new GraphicsWindowRenderer());
+    foodGraphics.AddPoint(cafe);
+    foodGraphics.Draw();
+
+    System.Console.WriteLine("\n----- Комбинация 3: TouristicMap + GraphicsWindowRenderer -----");
+    Map touristicGraphics = new TouristicMap(new GraphicsWindowRenderer());
+    touristicGraphics.AddPoint(park);
+    touristicGraphics.AddPoint(museum);
+    touristicGraphics.Draw();
 }
 
-// --- Lab3 (Bridge): комбинируем Вид карты × Способ отрисовки ---
-System.Console.WriteLine("\n----- Комбинация 1: TouristicMap + ConsoleRenderer -----");
-Map touristicConsole = new TouristicMap(new ConsoleRenderer());
-touristicConsole.AddPoint(park);
-touristicConsole.AddPoint(museum);
-touristicConsole.Draw();
+// Листья — точки интереса.
+PointOfInterestLeaf park = new("Центральный парк", "Парк", "55.7601, 37.6184");
+PointOfInterestLeaf museum = new("Музей истории", "Музей", "55.7580, 37.6150");
+PointOfInterestLeaf cafe = new("Кофейня на углу", "Кафе", "55.7612, 37.6205");
+PointOfInterestLeaf shop = new("Книжный магазин", "Магазин", "55.7595, 37.6170");
 
-System.Console.WriteLine("\n----- Комбинация 2: FoodMap + GraphicsWindowRenderer -----");
-Map foodGraphics = new FoodMap(new GraphicsWindowRenderer());
-foodGraphics.AddPoint(cafe);
-foodGraphics.Draw();
+// Подрегионы (тоже композиты).
+MapRegionComposite kitayGorod = new("Китай-город");
+kitayGorod.Add(museum);
+kitayGorod.Add(shop);
 
-System.Console.WriteLine("\n----- Комбинация 3: TouristicMap + GraphicsWindowRenderer -----");
-Map touristicGraphics = new TouristicMap(new GraphicsWindowRenderer());
-touristicGraphics.AddPoint(park);
-touristicGraphics.AddPoint(museum);
-touristicGraphics.Draw();
+MapRegionComposite arbat = new("Арбат");
+arbat.Add(cafe);
+
+// Главный регион — содержит подрегионы и точки.
+MapRegionComposite center = new("Центр");
+center.Add(park);
+center.Add(kitayGorod);
+center.Add(arbat);
+
+// Клиент работает с любым узлом одинаково — лист или группа.
+Console.WriteLine(center.Describe());
+Console.WriteLine($"\nВсего точек в регионе \"Центр\": {center.Count()}");
+Console.WriteLine($"Всего точек в \"Китай-город\": {kitayGorod.Count()}");
+Console.WriteLine($"Всего в листе \"Парк\": {park.Count()}");
+
+System.Console.WriteLine("\n\n===== Декоратор: динамическое форматирование вывода =====\n");
+
+// Базовый форматтер — только имя.
+IPoiFormatter formatter = new BasePoiFormatter();
+System.Console.WriteLine("1) Базовый:            " + formatter.Format("Центральный парк", "Парк", 4.7, "круглосуточно"));
+
+// Оборачиваем одной обязанностью.
+formatter = new RatingDecorator(formatter);
+System.Console.WriteLine("2) +рейтинг:           " + formatter.Format("Центральный парк", "Парк", 4.7, "круглосуточно"));
+
+// Навешиваем ещё одну.
+formatter = new OpeningHoursDecorator(formatter);
+System.Console.WriteLine("3) +часы работы:       " + formatter.Format("Центральный парк", "Парк", 4.7, "круглосуточно"));
+
+// И ещё одну.
+formatter = new CategoryDecorator(formatter);
+System.Console.WriteLine("4) +категория:         " + formatter.Format("Центральный парк", "Парк", 4.7, "круглосуточно"));
