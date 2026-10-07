@@ -1,4 +1,6 @@
-﻿using InteractiveMap.Console.Factories;
+﻿using InteractiveMap.Console.Adapters;
+using InteractiveMap.Console.Bridge;
+using InteractiveMap.Console.Factories;
 using InteractiveMap.Console.Models;
 using InteractiveMap.Console.Services;
 
@@ -79,14 +81,9 @@ void Lab2AbstractFactory()
     IPointOfInterest point = factory.CreatePoi("Центральный парк", new Coordinate(55.7601, 37.6184));
     IPoiDescription pointDescription = factory.CreateDescription(point.Name);
 
-    mapService.AddPoi(new PointOfInterest
-    {
-        Name = point.Name,
-        Category = point.Category,
-        Coordinate = point.Coordinate,
-        OpeningHours = point.OpeningHours,
-        Rating = point.Rating
-    });
+    PointOfInterest pointAdapter = new PointOfInterestAdapter(point).ToPointOfInterest();
+
+    mapService.AddPoi(pointAdapter);
 
     Console.WriteLine($"[Factory Tourist] {point.Name}, {point.Category}, {point.OpeningHours}, *{point.Rating}");
     Console.WriteLine($"  Описание: {pointDescription.Content}");
@@ -97,14 +94,11 @@ void Lab2AbstractFactory()
     point = factory.CreatePoi("Кофейня на углу", new Coordinate(55.7612, 37.6205));
     pointDescription = factory.CreateDescription(point.Name);
 
-    mapService.AddPoi(new PointOfInterest
-    {
-        Name = point.Name,
-        Category = point.Category,
-        Coordinate = point.Coordinate,
-        OpeningHours = point.OpeningHours,
-        Rating = point.Rating
-    });
+    pointAdapter = new PointOfInterestAdapter(point).ToPointOfInterest();
+
+
+    mapService.AddPoi(pointAdapter);
+
     Console.WriteLine($"\n[Factory Food] {point.Name}, {point.Category}, {point.OpeningHours}, *{point.Rating}");
     Console.WriteLine($"  Описание: {pointDescription.Content}");
 
@@ -115,4 +109,41 @@ void Lab2AbstractFactory()
     }
 }
 
-Lab2AbstractFactory();
+//Lab2AbstractFactory();
+
+// --- Lab2: фабрики создают продукты ---
+IMapFactory touristFactory = new TouristMapFactory();
+IMapFactory foodFactory = new FoodMapFactory();
+
+IPointOfInterest park = touristFactory.CreatePoi("Центральный парк", new Coordinate(55.7601, 37.6184));
+IPointOfInterest museum = touristFactory.CreatePoi("Музей истории", new Coordinate(55.7580, 37.6150));
+IPointOfInterest cafe = foodFactory.CreatePoi("Кофейня на углу", new Coordinate(55.7612, 37.6205));
+
+// Lab2: адаптер
+mapService.AddPoi(new PointOfInterestAdapter(park).ToPointOfInterest());
+mapService.AddPoi(new PointOfInterestAdapter(museum).ToPointOfInterest());
+mapService.AddPoi(new PointOfInterestAdapter(cafe).ToPointOfInterest());
+
+System.Console.WriteLine("Реестр MapService:");
+foreach (PointOfInterest p in mapService.All)
+{
+    System.Console.WriteLine(p);
+}
+
+// --- Lab3 (Bridge): комбинируем Вид карты × Способ отрисовки ---
+System.Console.WriteLine("\n----- Комбинация 1: TouristicMap + ConsoleRenderer -----");
+Map touristicConsole = new TouristicMap(new ConsoleRenderer());
+touristicConsole.AddPoint(park);
+touristicConsole.AddPoint(museum);
+touristicConsole.Draw();
+
+System.Console.WriteLine("\n----- Комбинация 2: FoodMap + GraphicsWindowRenderer -----");
+Map foodGraphics = new FoodMap(new GraphicsWindowRenderer());
+foodGraphics.AddPoint(cafe);
+foodGraphics.Draw();
+
+System.Console.WriteLine("\n----- Комбинация 3: TouristicMap + GraphicsWindowRenderer -----");
+Map touristicGraphics = new TouristicMap(new GraphicsWindowRenderer());
+touristicGraphics.AddPoint(park);
+touristicGraphics.AddPoint(museum);
+touristicGraphics.Draw();
