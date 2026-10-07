@@ -1,4 +1,5 @@
-﻿using InteractiveMap.Console.Adapters;
+﻿using InteractiveMap.Console.Abstractions;
+using InteractiveMap.Console.Adapters;
 using InteractiveMap.Console.Bridge;
 using InteractiveMap.Console.Composite;
 using InteractiveMap.Console.Decorator;
@@ -6,6 +7,7 @@ using InteractiveMap.Console.Facade;
 using InteractiveMap.Console.Factories;
 using InteractiveMap.Console.Flyweight;
 using InteractiveMap.Console.Models;
+using InteractiveMap.Console.Proxies;
 using InteractiveMap.Console.Services;
 
 MapService mapService = MapService.Instance;
@@ -204,26 +206,27 @@ void Lab4()
     System.Console.WriteLine("4) +категория:         " + formatter.Format("Центральный парк", "Парк", 4.7, "круглосуточно"));
 }
 
+void Lab5()
+{
+    System.Console.WriteLine("===== Фасад: единая точка входа =====\n");
 
-System.Console.WriteLine("===== Фасад: единая точка входа =====\n");
+    MapFacade facade = new();
 
-MapFacade facade = new();
+    facade.AddTouristPoi("Центральный парк", 55.7601, 37.6184);
+    facade.AddTouristPoi("Музей истории", 55.7580, 37.6150);
+    facade.AddFoodPoi("Кофейня на углу", 55.7612, 37.6205);
 
-facade.AddTouristPoi("Центральный парк", 55.7601, 37.6184);
-facade.AddTouristPoi("Музей истории", 55.7580, 37.6150);
-facade.AddFoodPoi("Кофейня на углу", 55.7612, 37.6205);
+    System.Console.WriteLine($"Всего точек: {facade.TotalCount()}\n");
 
-System.Console.WriteLine($"Всего точек: {facade.TotalCount()}\n");
+    System.Console.WriteLine("--- Рендер туристической карты в консоль ---");
+    facade.RenderTouristConsole();
 
-System.Console.WriteLine("--- Рендер туристической карты в консоль ---");
-facade.RenderTouristConsole();
+    System.Console.WriteLine("\n--- Рендер гастрономической карты в графическое окно ---");
+    facade.RenderFoodGraphics();
 
-System.Console.WriteLine("\n--- Рендер гастрономической карты в графическое окно ---");
-facade.RenderFoodGraphics();
+    System.Console.WriteLine("\n\n===== Приспособленец: разделение категорий =====\n");
 
-System.Console.WriteLine("\n\n===== Приспособленец: разделение категорий =====\n");
-
-List<MapPoint> points = new()
+    List<MapPoint> points = new()
 {
     new("Парк Горького", 55.7300, 37.6010, CategoryFactory.Get("park")),
     new("Сокольники", 55.7940, 37.6760, CategoryFactory.Get("park")),
@@ -235,11 +238,56 @@ List<MapPoint> points = new()
     new("Книжный магазин", 55.7595, 37.6170, CategoryFactory.Get("shop")),
 };
 
-foreach (MapPoint p in points)
-{
-    System.Console.WriteLine(p.Describe());
+    foreach (MapPoint p in points)
+    {
+        System.Console.WriteLine(p.Describe());
+    }
+
+    System.Console.WriteLine($"\nТочек создано:          {points.Count}");
+    System.Console.WriteLine($"Объектов Category:      {CategoryFactory.CacheSize}  (вместо {points.Count})");
+    System.Console.WriteLine($"Экономия по категориям: {points.Count - CategoryFactory.CacheSize} объектов");
 }
 
-System.Console.WriteLine($"\nТочек создано:          {points.Count}");
-System.Console.WriteLine($"Объектов Category:      {CategoryFactory.CacheSize}  (вместо {points.Count})");
-System.Console.WriteLine($"Экономия по категориям: {points.Count - CategoryFactory.CacheSize} объектов");
+// Заполняем реестр через MapService (Singleton из Lab1).
+MapService service = MapService.Instance;
+
+PointOfInterest park = service.AddPoi(new PointOfInterest { Name = "Центральный парк", Coordinate = new Coordinate(55.7601, 37.6184) });
+PointOfInterest museum = service.AddPoi(new PointOfInterest { Name = "Музей истории", Coordinate = new Coordinate(55.7580, 37.6150) });
+PointOfInterest cafe = service.AddPoi(new PointOfInterest { Name = "Кофейня на углу", Coordinate = new Coordinate(55.7612, 37.6205) });
+
+System.Console.WriteLine("===== Заместитель (Caching Proxy) =====\n");
+
+// 1. Работаем напрямую через RealSubject (без кэша).
+IDistanceCalculator realOnly = service;
+System.Console.WriteLine("--- Без прокси ---");
+{
+    double d = realOnly.GetDistance(park.Id, museum.Id);
+    System.Console.WriteLine($"{d:0.0000} км");
+}
+
+// 2. Работаем через CachingProxy.
+IDistanceCalculator proxy = new CachingDistanceProxy(service);
+System.Console.WriteLine("\n--- С прокси ---");
+{
+    double d = proxy.GetDistance(park.Id, museum.Id);
+    System.Console.WriteLine($"{d:0.0000} км");
+}
+
+// 3. Симметрия: (a,b) и (b,a) должны дать один и тот же кэш-ключ.
+System.Console.WriteLine("\n--- Симметрия: (park, museum) и (museum, park) ---");
+double ab = proxy.GetDistance(park.Id, museum.Id);
+double ba = proxy.GetDistance(museum.Id, park.Id);
+System.Console.WriteLine($"  (park, museum) = {ab:0.0000}");
+System.Console.WriteLine($"  (museum, park) = {ba:0.0000}");
+
+// 4. Разные пары — промахи кэша.
+System.Console.WriteLine("\n--- Добавляем новую пару (park, cafe) ---");
+double pc = proxy.GetDistance(park.Id, cafe.Id);
+System.Console.WriteLine($"  (park, cafe) = {pc:0.0000}");
+
+// 5. Итоговая статистика.
+CachingDistanceProxy stats = (CachingDistanceProxy)proxy;
+System.Console.WriteLine("\n===== Статистика прокси =====");
+System.Console.WriteLine($"  попаданий в кэш (hits):  {stats.Hits}");
+System.Console.WriteLine($"  промахов (misses):       {stats.Misses}");
+System.Console.WriteLine($"  размер кэша:             {stats.CacheSize}");

@@ -1,8 +1,9 @@
-﻿using InteractiveMap.Console.Models;
+﻿using InteractiveMap.Console.Abstractions;
+using InteractiveMap.Console.Models;
 
 namespace InteractiveMap.Console.Services;
 
-public sealed class MapService
+public sealed class MapService : IDistanceCalculator
 {
     private readonly List<PointOfInterest> _pois = new();
 
