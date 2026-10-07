@@ -2,7 +2,9 @@
 using InteractiveMap.Console.Bridge;
 using InteractiveMap.Console.Composite;
 using InteractiveMap.Console.Decorator;
+using InteractiveMap.Console.Facade;
 using InteractiveMap.Console.Factories;
+using InteractiveMap.Console.Flyweight;
 using InteractiveMap.Console.Models;
 using InteractiveMap.Console.Services;
 
@@ -154,46 +156,90 @@ void Lab3()
     touristicGraphics.Draw();
 }
 
-// Листья — точки интереса.
-PointOfInterestLeaf park = new("Центральный парк", "Парк", "55.7601, 37.6184");
-PointOfInterestLeaf museum = new("Музей истории", "Музей", "55.7580, 37.6150");
-PointOfInterestLeaf cafe = new("Кофейня на углу", "Кафе", "55.7612, 37.6205");
-PointOfInterestLeaf shop = new("Книжный магазин", "Магазин", "55.7595, 37.6170");
+void Lab4()
+{
 
-// Подрегионы (тоже композиты).
-MapRegionComposite kitayGorod = new("Китай-город");
-kitayGorod.Add(museum);
-kitayGorod.Add(shop);
+    // Листья — точки интереса.
+    PointOfInterestLeaf park = new("Центральный парк", "Парк", "55.7601, 37.6184");
+    PointOfInterestLeaf museum = new("Музей истории", "Музей", "55.7580, 37.6150");
+    PointOfInterestLeaf cafe = new("Кофейня на углу", "Кафе", "55.7612, 37.6205");
+    PointOfInterestLeaf shop = new("Книжный магазин", "Магазин", "55.7595, 37.6170");
 
-MapRegionComposite arbat = new("Арбат");
-arbat.Add(cafe);
+    // Подрегионы (тоже композиты).
+    MapRegionComposite kitayGorod = new("Китай-город");
+    kitayGorod.Add(museum);
+    kitayGorod.Add(shop);
 
-// Главный регион — содержит подрегионы и точки.
-MapRegionComposite center = new("Центр");
-center.Add(park);
-center.Add(kitayGorod);
-center.Add(arbat);
+    MapRegionComposite arbat = new("Арбат");
+    arbat.Add(cafe);
 
-// Клиент работает с любым узлом одинаково — лист или группа.
-Console.WriteLine(center.Describe());
-Console.WriteLine($"\nВсего точек в регионе \"Центр\": {center.Count()}");
-Console.WriteLine($"Всего точек в \"Китай-город\": {kitayGorod.Count()}");
-Console.WriteLine($"Всего в листе \"Парк\": {park.Count()}");
+    // Главный регион — содержит подрегионы и точки.
+    MapRegionComposite center = new("Центр");
+    center.Add(park);
+    center.Add(kitayGorod);
+    center.Add(arbat);
 
-System.Console.WriteLine("\n\n===== Декоратор: динамическое форматирование вывода =====\n");
+    // Клиент работает с любым узлом одинаково — лист или группа.
+    Console.WriteLine(center.Describe());
+    Console.WriteLine($"\nВсего точек в регионе \"Центр\": {center.Count()}");
+    Console.WriteLine($"Всего точек в \"Китай-город\": {kitayGorod.Count()}");
+    Console.WriteLine($"Всего в листе \"Парк\": {park.Count()}");
 
-// Базовый форматтер — только имя.
-IPoiFormatter formatter = new BasePoiFormatter();
-System.Console.WriteLine("1) Базовый:            " + formatter.Format("Центральный парк", "Парк", 4.7, "круглосуточно"));
+    System.Console.WriteLine("\n\n===== Декоратор: динамическое форматирование вывода =====\n");
 
-// Оборачиваем одной обязанностью.
-formatter = new RatingDecorator(formatter);
-System.Console.WriteLine("2) +рейтинг:           " + formatter.Format("Центральный парк", "Парк", 4.7, "круглосуточно"));
+    // Базовый форматтер — только имя.
+    IPoiFormatter formatter = new BasePoiFormatter();
+    System.Console.WriteLine("1) Базовый:            " + formatter.Format("Центральный парк", "Парк", 4.7, "круглосуточно"));
 
-// Навешиваем ещё одну.
-formatter = new OpeningHoursDecorator(formatter);
-System.Console.WriteLine("3) +часы работы:       " + formatter.Format("Центральный парк", "Парк", 4.7, "круглосуточно"));
+    // Оборачиваем одной обязанностью.
+    formatter = new RatingDecorator(formatter);
+    System.Console.WriteLine("2) +рейтинг:           " + formatter.Format("Центральный парк", "Парк", 4.7, "круглосуточно"));
 
-// И ещё одну.
-formatter = new CategoryDecorator(formatter);
-System.Console.WriteLine("4) +категория:         " + formatter.Format("Центральный парк", "Парк", 4.7, "круглосуточно"));
+    // Навешиваем ещё одну.
+    formatter = new OpeningHoursDecorator(formatter);
+    System.Console.WriteLine("3) +часы работы:       " + formatter.Format("Центральный парк", "Парк", 4.7, "круглосуточно"));
+
+    // И ещё одну.
+    formatter = new CategoryDecorator(formatter);
+    System.Console.WriteLine("4) +категория:         " + formatter.Format("Центральный парк", "Парк", 4.7, "круглосуточно"));
+}
+
+
+System.Console.WriteLine("===== Фасад: единая точка входа =====\n");
+
+MapFacade facade = new();
+
+facade.AddTouristPoi("Центральный парк", 55.7601, 37.6184);
+facade.AddTouristPoi("Музей истории", 55.7580, 37.6150);
+facade.AddFoodPoi("Кофейня на углу", 55.7612, 37.6205);
+
+System.Console.WriteLine($"Всего точек: {facade.TotalCount()}\n");
+
+System.Console.WriteLine("--- Рендер туристической карты в консоль ---");
+facade.RenderTouristConsole();
+
+System.Console.WriteLine("\n--- Рендер гастрономической карты в графическое окно ---");
+facade.RenderFoodGraphics();
+
+System.Console.WriteLine("\n\n===== Приспособленец: разделение категорий =====\n");
+
+List<MapPoint> points = new()
+{
+    new("Парк Горького", 55.7300, 37.6010, CategoryFactory.Get("park")),
+    new("Сокольники", 55.7940, 37.6760, CategoryFactory.Get("park")),
+    new("Кофейня №1",  55.7612, 37.6205, CategoryFactory.Get("cafe")),
+    new("Кофейня №2", 55.7655, 37.6100, CategoryFactory.Get("cafe")),
+    new("Кофейня №3",  55.7500, 37.6300, CategoryFactory.Get("cafe")),
+    new("Музей истории",  55.7580, 37.6150, CategoryFactory.Get("museum")),
+    new("Пушкинский музей",55.7350, 37.6050, CategoryFactory.Get("museum")),
+    new("Книжный магазин", 55.7595, 37.6170, CategoryFactory.Get("shop")),
+};
+
+foreach (MapPoint p in points)
+{
+    System.Console.WriteLine(p.Describe());
+}
+
+System.Console.WriteLine($"\nТочек создано:          {points.Count}");
+System.Console.WriteLine($"Объектов Category:      {CategoryFactory.CacheSize}  (вместо {points.Count})");
+System.Console.WriteLine($"Экономия по категориям: {points.Count - CategoryFactory.CacheSize} объектов");
