@@ -5,13 +5,13 @@
 /// </summary>
 public sealed class ValidationResult
 {
-    private bool _isValid { get; }
-    private string? _errorMessage { get; }
+    public bool IsValid { get; }
+    public string? ErrorMessage { get; }
 
     private ValidationResult(bool isValid, string? errorMessage)
     {
-        _isValid = isValid;
-        _errorMessage = errorMessage;
+        IsValid = isValid;
+        ErrorMessage = errorMessage;
     }
 
     public static ValidationResult Ok() => new(true, null);
@@ -19,5 +19,5 @@ public sealed class ValidationResult
     public static ValidationResult Fail(string message) => new(false, message);
 
     public override string ToString() =>
-        _isValid ? "OK" : $"FAIL: {_errorMessage}";
+        IsValid ? "OK" : $"FAIL: {ErrorMessage}";
 }

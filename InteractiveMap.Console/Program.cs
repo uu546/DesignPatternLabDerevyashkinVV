@@ -8,6 +8,8 @@ using InteractiveMap.Console.Facade;
 using InteractiveMap.Console.Factories;
 using InteractiveMap.Console.Flyweight;
 using InteractiveMap.Console.Iterators;
+using InteractiveMap.Console.Mediation;
+using InteractiveMap.Console.Memento;
 using InteractiveMap.Console.Models;
 using InteractiveMap.Console.Proxies;
 using InteractiveMap.Console.Services;
@@ -361,47 +363,108 @@ void Lab7()
     System.Console.WriteLine($"  HasNext в начале: {noneIterator.HasNext()}");
 }
 
-System.Console.WriteLine("===== Цепочка обязанностей: валидация точек =====\n");
-
-PoiValidationPipeline pipeline = new();
-
-// Кейс 1: корректная точка.
-PointOfInterest ok = new()
+void Lab8()
 {
-    Name = "Центральный парк",
-    Coordinate = new Coordinate(55.7601, 37.6184),
-    Category = "Парк",
-    Rating = 4.5,
-    OpeningHours = "круглосуточно"
-};
-System.Console.WriteLine($"1) Корректная точка      -> {pipeline.Validate(ok)}");
 
-// Кейс 2: пустое имя — ошибка NameValidator (первый в цепочке).
-PointOfInterest badName = new()
+    System.Console.WriteLine("===== Цепочка обязанностей: валидация точек =====\n");
+
+    PoiValidationPipeline pipeline = new();
+
+    // Кейс 1: корректная точка.
+    PointOfInterest ok = new()
+    {
+        Name = "Центральный парк",
+        Coordinate = new Coordinate(55.7601, 37.6184),
+        Category = "Парк",
+        Rating = 4.5,
+        OpeningHours = "круглосуточно"
+    };
+    System.Console.WriteLine($"1) Корректная точка      -> {pipeline.Validate(ok)}");
+
+    // Кейс 2: пустое имя — ошибка NameValidator (первый в цепочке).
+    PointOfInterest badName = new()
+    {
+        Name = "   ",
+        Coordinate = new Coordinate(55.7601, 37.6184),
+        Rating = 4.5
+    };
+    System.Console.WriteLine($"2) Пустое имя            -> {pipeline.Validate(badName)}");
+
+    // Кейс 3: отрицательный рейтинг — ошибка RatingValidator.
+    PointOfInterest badRating = new()
+    {
+        Name = "Кофейня",
+        Coordinate = new Coordinate(55.7612, 37.6205),
+        Rating = 9.9
+    };
+    System.Console.WriteLine($"3) Рейтинг вне диапазона -> {pipeline.Validate(badRating)}");
+
+    // Кейс 4: пустая категория — поймает CategoryValidator (последний).
+    PointOfInterest badCategory = new()
+    {
+        Name = "Музей",
+        Coordinate = new Coordinate(55.7580, 37.6150),
+        Category = "   ",
+        Rating = 4.8
+    };
+    System.Console.WriteLine($"4) Пустая категория      -> {pipeline.Validate(badCategory)}");
+
+    System.Console.WriteLine("\n===== Конец демонстрации =====");
+}
+
+// ==================== MEDIATOR ====================
+System.Console.WriteLine("===== Посредник: централизация взаимодействия =====\n");
+
+MapMediator mediator = new(new ConsoleRenderer());
+MapPanel panel = new();
+panel.SetMediator(mediator);
+
+// Панель не знает о MapService / валидаторе / рендерере — только о посреднике.
+panel.RequestAdd("Центральный парк", 55.7601, 37.6184, "Парк", 4.7);
+panel.RequestAdd("Музей истории", 55.7580, 37.6150, "Музей", 4.9);
+
+// Некорректный ввод — отклонён цепочкой валидаторов (Lab8) через посредника.
+panel.RequestAdd("   ", 55.7601, 37.6184, "Парк", 4.7); // пустое имя
+
+panel.RequestRender();
+
+// ==================== MEMENTO ====================
+System.Console.WriteLine("\n\n===== Снимок: сохранение и откат состояния =====\n");
+
+PoiOriginator originator = new("Кофейня на углу");
+PoiHistoryCaretaker caretaker = new();
+
+System.Console.WriteLine("Начальное состояние:");
+System.Console.WriteLine("  " + originator.Describe());
+
+// Сохраняем снимок перед изменением.
+caretaker.Save(originator.Save());
+
+// Редактируем.
+originator.Edit("Кофейня на углу (обновлено)", "Кафе", 4.5, "08:00–22:00");
+System.Console.WriteLine("\nПосле первого редактирования:");
+System.Console.WriteLine("  " + originator.Describe());
+
+// Ещё раз сохраняем и редактируем.
+caretaker.Save(originator.Save());
+originator.Edit("Совсем другое имя", "Ресторан", 3.0, "12:00–23:00");
+System.Console.WriteLine("\nПосле второго редактирования:");
+System.Console.WriteLine("  " + originator.Describe());
+
+// Откатываем последнее изменение.
+PoiMemento? last = caretaker.Undo();
+if (last is not null)
 {
-    Name = "   ",
-    Coordinate = new Coordinate(55.7601, 37.6184),
-    Rating = 4.5
-};
-System.Console.WriteLine($"2) Пустое имя            -> {pipeline.Validate(badName)}");
+    originator.Restore(last);
+}
+System.Console.WriteLine("\nПосле Undo #1:");
+System.Console.WriteLine("  " + originator.Describe());
 
-// Кейс 3: отрицательный рейтинг — ошибка RatingValidator.
-PointOfInterest badRating = new()
+// Откатываем ещё раз.
+last = caretaker.Undo();
+if (last is not null)
 {
-    Name = "Кофейня",
-    Coordinate = new Coordinate(55.7612, 37.6205),
-    Rating = 9.9
-};
-System.Console.WriteLine($"3) Рейтинг вне диапазона -> {pipeline.Validate(badRating)}");
-
-// Кейс 4: пустая категория — поймает CategoryValidator (последний).
-PointOfInterest badCategory = new()
-{
-    Name = "Музей",
-    Coordinate = new Coordinate(55.7580, 37.6150),
-    Category = "   ",
-    Rating = 4.8
-};
-System.Console.WriteLine($"4) Пустая категория      -> {pipeline.Validate(badCategory)}");
-
-System.Console.WriteLine("\n===== Конец демонстрации =====");
+    originator.Restore(last);
+}
+System.Console.WriteLine("\nПосле Undo #2 (вернулись к началу):");
+System.Console.WriteLine("  " + originator.Describe());
