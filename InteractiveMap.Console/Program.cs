@@ -11,6 +11,7 @@ using InteractiveMap.Console.Iterators;
 using InteractiveMap.Console.Models;
 using InteractiveMap.Console.Proxies;
 using InteractiveMap.Console.Services;
+using InteractiveMap.Console.Validation;
 
 MapService mapService = MapService.Instance;
 
@@ -298,60 +299,109 @@ void Lab6()
     System.Console.WriteLine($"  размер кэша:             {stats.CacheSize}");
 }
 
-CommandInvoker invoker = new();
-
-System.Console.WriteLine("===== Команда: журнал операций с Undo =====\n");
-
-// Выполняем команды через Invoker.
-invoker.Execute(new AddPoiCommand(mapService,
-    new PointOfInterest { Name = "Центральный парк", Category = "Парк", Coordinate = new Coordinate(55.7601, 37.6184) }));
-
-invoker.Execute(new AddPoiCommand(mapService,
-    new PointOfInterest { Name = "Музей истории", Category = "Музей", Coordinate = new Coordinate(55.7580, 37.6150) }));
-
-invoker.Execute(new AddPoiCommand(mapService,
-    new PointOfInterest { Name = "Кофейня на углу", Category = "Кафе", Coordinate = new Coordinate(55.7612, 37.6205) }));
-
-System.Console.WriteLine($"После 3 добавлений (всего точек в реестре: {mapService.All.Count}):");
-foreach (var p in mapService.All) System.Console.WriteLine("  " + p);
-
-// Отменяем последнее действие.
-System.Console.WriteLine("\n--- UndoLast() ---");
-invoker.UndoLast();
-
-System.Console.WriteLine($"После отмены (осталось точек: {mapService.All.Count}):");
-foreach (var p in mapService.All) System.Console.WriteLine("  " + p);
-
-// Удаление с откатом.
-System.Console.WriteLine("\n--- Команда RemovePoiCommand для #1 + Undo ---");
-invoker.Execute(new RemovePoiCommand(mapService, poiId: 1));
-System.Console.WriteLine($"После удаления #1 (всего: {mapService.All.Count}):");
-foreach (var p in mapService.All) System.Console.WriteLine("  " + p);
-
-invoker.UndoLast();
-System.Console.WriteLine($"После отмены удаления (всего: {mapService.All.Count}):");
-foreach (var p in mapService.All) System.Console.WriteLine("  " + p);
-
-// ==================== ITERATOR ====================
-System.Console.WriteLine("\n\n===== Итератор: обход с фильтром по категории =====\n");
-
-// Обход всех.
-System.Console.WriteLine("--- Все точки (без фильтра) ---");
-IPoiIterator allIterator = mapService.CreateIterator();
-while (allIterator.HasNext())
+void Lab7()
 {
-    System.Console.WriteLine("  " + allIterator.Next().Name);
+
+    CommandInvoker invoker = new();
+
+    System.Console.WriteLine("===== Команда: журнал операций с Undo =====\n");
+
+    // Выполняем команды через Invoker.
+    invoker.Execute(new AddPoiCommand(mapService,
+        new PointOfInterest { Name = "Центральный парк", Category = "Парк", Coordinate = new Coordinate(55.7601, 37.6184) }));
+
+    invoker.Execute(new AddPoiCommand(mapService,
+        new PointOfInterest { Name = "Музей истории", Category = "Музей", Coordinate = new Coordinate(55.7580, 37.6150) }));
+
+    invoker.Execute(new AddPoiCommand(mapService,
+        new PointOfInterest { Name = "Кофейня на углу", Category = "Кафе", Coordinate = new Coordinate(55.7612, 37.6205) }));
+
+    System.Console.WriteLine($"После 3 добавлений (всего точек в реестре: {mapService.All.Count}):");
+    foreach (var p in mapService.All) System.Console.WriteLine("  " + p);
+
+    // Отменяем последнее действие.
+    System.Console.WriteLine("\n--- UndoLast() ---");
+    invoker.UndoLast();
+
+    System.Console.WriteLine($"После отмены (осталось точек: {mapService.All.Count}):");
+    foreach (var p in mapService.All) System.Console.WriteLine("  " + p);
+
+    // Удаление с откатом.
+    System.Console.WriteLine("\n--- Команда RemovePoiCommand для #1 + Undo ---");
+    invoker.Execute(new RemovePoiCommand(mapService, poiId: 1));
+    System.Console.WriteLine($"После удаления #1 (всего: {mapService.All.Count}):");
+    foreach (var p in mapService.All) System.Console.WriteLine("  " + p);
+
+    invoker.UndoLast();
+    System.Console.WriteLine($"После отмены удаления (всего: {mapService.All.Count}):");
+    foreach (var p in mapService.All) System.Console.WriteLine("  " + p);
+
+    // ==================== ITERATOR ====================
+    System.Console.WriteLine("\n\n===== Итератор: обход с фильтром по категории =====\n");
+
+    // Обход всех.
+    System.Console.WriteLine("--- Все точки (без фильтра) ---");
+    IPoiIterator allIterator = mapService.CreateIterator();
+    while (allIterator.HasNext())
+    {
+        System.Console.WriteLine("  " + allIterator.Next().Name);
+    }
+
+    // Обход только категории "Музей".
+    System.Console.WriteLine("\n--- Только категория \"Музей\" ---");
+    IPoiIterator museumIterator = mapService.CreateIterator("Музей");
+    while (museumIterator.HasNext())
+    {
+        System.Console.WriteLine("  " + museumIterator.Next().Name);
+    }
+
+    // Обход несуществующей категории — итератор сразу пуст.
+    System.Console.WriteLine("\n--- Категория \"Ресторан\" (нет таких) ---");
+    IPoiIterator noneIterator = mapService.CreateIterator("Ресторан");
+    System.Console.WriteLine($"  HasNext в начале: {noneIterator.HasNext()}");
 }
 
-// Обход только категории "Музей".
-System.Console.WriteLine("\n--- Только категория \"Музей\" ---");
-IPoiIterator museumIterator = mapService.CreateIterator("Музей");
-while (museumIterator.HasNext())
-{
-    System.Console.WriteLine("  " + museumIterator.Next().Name);
-}
+System.Console.WriteLine("===== Цепочка обязанностей: валидация точек =====\n");
 
-// Обход несуществующей категории — итератор сразу пуст.
-System.Console.WriteLine("\n--- Категория \"Ресторан\" (нет таких) ---");
-IPoiIterator noneIterator = mapService.CreateIterator("Ресторан");
-System.Console.WriteLine($"  HasNext в начале: {noneIterator.HasNext()}");
+PoiValidationPipeline pipeline = new();
+
+// Кейс 1: корректная точка.
+PointOfInterest ok = new()
+{
+    Name = "Центральный парк",
+    Coordinate = new Coordinate(55.7601, 37.6184),
+    Category = "Парк",
+    Rating = 4.5,
+    OpeningHours = "круглосуточно"
+};
+System.Console.WriteLine($"1) Корректная точка      -> {pipeline.Validate(ok)}");
+
+// Кейс 2: пустое имя — ошибка NameValidator (первый в цепочке).
+PointOfInterest badName = new()
+{
+    Name = "   ",
+    Coordinate = new Coordinate(55.7601, 37.6184),
+    Rating = 4.5
+};
+System.Console.WriteLine($"2) Пустое имя            -> {pipeline.Validate(badName)}");
+
+// Кейс 3: отрицательный рейтинг — ошибка RatingValidator.
+PointOfInterest badRating = new()
+{
+    Name = "Кофейня",
+    Coordinate = new Coordinate(55.7612, 37.6205),
+    Rating = 9.9
+};
+System.Console.WriteLine($"3) Рейтинг вне диапазона -> {pipeline.Validate(badRating)}");
+
+// Кейс 4: пустая категория — поймает CategoryValidator (последний).
+PointOfInterest badCategory = new()
+{
+    Name = "Музей",
+    Coordinate = new Coordinate(55.7580, 37.6150),
+    Category = "   ",
+    Rating = 4.8
+};
+System.Console.WriteLine($"4) Пустая категория      -> {pipeline.Validate(badCategory)}");
+
+System.Console.WriteLine("\n===== Конец демонстрации =====");
