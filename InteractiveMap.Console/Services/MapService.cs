@@ -1,12 +1,14 @@
 ﻿using InteractiveMap.Console.Abstractions;
 using InteractiveMap.Console.Iterators;
 using InteractiveMap.Console.Models;
+using InteractiveMap.Console.Observer;
 
 namespace InteractiveMap.Console.Services;
 
 public sealed class MapService : IDistanceCalculator, IPoiCollection
 {
     private readonly List<PointOfInterest> _pois = new();
+    private readonly List<IMapObserver> _observers = new();
 
     private int _nextId = 1;
 
@@ -14,6 +16,9 @@ public sealed class MapService : IDistanceCalculator, IPoiCollection
 
     private static readonly Lazy<MapService> _instance =
         new(() => new MapService(), isThreadSafe: true);
+
+    public void Attach(IMapObserver observer) => _observers.Add(observer);
+    public void Detach(IMapObserver observer) => _observers.Remove(observer);
 
     public static MapService Instance => _instance.Value;
 
@@ -36,11 +41,21 @@ public sealed class MapService : IDistanceCalculator, IPoiCollection
         };
 
         _pois.Add(result);
-
+        NotifyPoiAdded(result);
         return result;
     }
 
-    public bool RemovePoi(int id) => _pois.RemoveAll(p => p.Id == id) > 0;
+    public bool RemovePoi(int id)
+    {
+        bool removed = _pois.RemoveAll(p => p.Id == id) > 0;
+
+        if (removed)
+        {
+            NotifyPoiRemoved(id);
+        }
+
+        return removed;
+    }
 
     public PointOfInterest? FindByName(string name)
     {
@@ -94,6 +109,22 @@ public sealed class MapService : IDistanceCalculator, IPoiCollection
     /// <param name="deg">Градусы.</param>
     /// <returns>Приведенные градусы.</returns>
     private double ToRadians(double deg) => deg * Math.PI / 180.0;
+
+    private void NotifyPoiAdded(PointOfInterest poi)
+    {
+        foreach (IMapObserver observer in _observers)
+        {
+            observer.OnPoiAdded(poi);
+        }
+    }
+
+    private void NotifyPoiRemoved(int id)
+    {
+        foreach (IMapObserver observer in _observers)
+        {
+            observer.OnPoiRemoved(id);
+        }
+    }
 
     public IPoiIterator CreateIterator()
     {

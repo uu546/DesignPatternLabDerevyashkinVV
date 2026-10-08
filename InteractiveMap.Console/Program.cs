@@ -11,8 +11,10 @@ using InteractiveMap.Console.Iterators;
 using InteractiveMap.Console.Mediation;
 using InteractiveMap.Console.Memento;
 using InteractiveMap.Console.Models;
+using InteractiveMap.Console.Observer;
 using InteractiveMap.Console.Proxies;
 using InteractiveMap.Console.Services;
+using InteractiveMap.Console.State;
 using InteractiveMap.Console.Validation;
 
 MapService mapService = MapService.Instance;
@@ -412,59 +414,136 @@ void Lab8()
     System.Console.WriteLine("\n===== Конец демонстрации =====");
 }
 
-// ==================== MEDIATOR ====================
-System.Console.WriteLine("===== Посредник: централизация взаимодействия =====\n");
-
-MapMediator mediator = new(new ConsoleRenderer());
-MapPanel panel = new();
-panel.SetMediator(mediator);
-
-// Панель не знает о MapService / валидаторе / рендерере — только о посреднике.
-panel.RequestAdd("Центральный парк", 55.7601, 37.6184, "Парк", 4.7);
-panel.RequestAdd("Музей истории", 55.7580, 37.6150, "Музей", 4.9);
-
-// Некорректный ввод — отклонён цепочкой валидаторов (Lab8) через посредника.
-panel.RequestAdd("   ", 55.7601, 37.6184, "Парк", 4.7); // пустое имя
-
-panel.RequestRender();
-
-// ==================== MEMENTO ====================
-System.Console.WriteLine("\n\n===== Снимок: сохранение и откат состояния =====\n");
-
-PoiOriginator originator = new("Кофейня на углу");
-PoiHistoryCaretaker caretaker = new();
-
-System.Console.WriteLine("Начальное состояние:");
-System.Console.WriteLine("  " + originator.Describe());
-
-// Сохраняем снимок перед изменением.
-caretaker.Save(originator.Save());
-
-// Редактируем.
-originator.Edit("Кофейня на углу (обновлено)", "Кафе", 4.5, "08:00–22:00");
-System.Console.WriteLine("\nПосле первого редактирования:");
-System.Console.WriteLine("  " + originator.Describe());
-
-// Ещё раз сохраняем и редактируем.
-caretaker.Save(originator.Save());
-originator.Edit("Совсем другое имя", "Ресторан", 3.0, "12:00–23:00");
-System.Console.WriteLine("\nПосле второго редактирования:");
-System.Console.WriteLine("  " + originator.Describe());
-
-// Откатываем последнее изменение.
-PoiMemento? last = caretaker.Undo();
-if (last is not null)
+void Lab9()
 {
-    originator.Restore(last);
-}
-System.Console.WriteLine("\nПосле Undo #1:");
-System.Console.WriteLine("  " + originator.Describe());
 
-// Откатываем ещё раз.
-last = caretaker.Undo();
-if (last is not null)
-{
-    originator.Restore(last);
+    // ==================== MEDIATOR ====================
+    System.Console.WriteLine("===== Посредник: централизация взаимодействия =====\n");
+
+    MapMediator mediator = new(new ConsoleRenderer());
+    MapPanel panel = new();
+    panel.SetMediator(mediator);
+
+    // Панель не знает о MapService / валидаторе / рендерере — только о посреднике.
+    panel.RequestAdd("Центральный парк", 55.7601, 37.6184, "Парк", 4.7);
+    panel.RequestAdd("Музей истории", 55.7580, 37.6150, "Музей", 4.9);
+
+    // Некорректный ввод — отклонён цепочкой валидаторов (Lab8) через посредника.
+    panel.RequestAdd("   ", 55.7601, 37.6184, "Парк", 4.7); // пустое имя
+
+    panel.RequestRender();
+
+    // ==================== MEMENTO ====================
+    System.Console.WriteLine("\n\n===== Снимок: сохранение и откат состояния =====\n");
+
+    PoiOriginator originator = new("Кофейня на углу");
+    PoiHistoryCaretaker caretaker = new();
+
+    System.Console.WriteLine("Начальное состояние:");
+    System.Console.WriteLine("  " + originator.Describe());
+
+    // Сохраняем снимок перед изменением.
+    caretaker.Save(originator.Save());
+
+    // Редактируем.
+    originator.Edit("Кофейня на углу (обновлено)", "Кафе", 4.5, "08:00–22:00");
+    System.Console.WriteLine("\nПосле первого редактирования:");
+    System.Console.WriteLine("  " + originator.Describe());
+
+    // Ещё раз сохраняем и редактируем.
+    caretaker.Save(originator.Save());
+    originator.Edit("Совсем другое имя", "Ресторан", 3.0, "12:00–23:00");
+    System.Console.WriteLine("\nПосле второго редактирования:");
+    System.Console.WriteLine("  " + originator.Describe());
+
+    // Откатываем последнее изменение.
+    PoiMemento? last = caretaker.Undo();
+    if (last is not null)
+    {
+        originator.Restore(last);
+    }
+    System.Console.WriteLine("\nПосле Undo #1:");
+    System.Console.WriteLine("  " + originator.Describe());
+
+    // Откатываем ещё раз.
+    last = caretaker.Undo();
+    if (last is not null)
+    {
+        originator.Restore(last);
+    }
+    System.Console.WriteLine("\nПосле Undo #2 (вернулись к началу):");
+    System.Console.WriteLine("  " + originator.Describe());
 }
-System.Console.WriteLine("\nПосле Undo #2 (вернулись к началу):");
-System.Console.WriteLine("  " + originator.Describe());
+
+// ==================== OBSERVER ====================
+System.Console.WriteLine("===== Наблюдатель: подписка на реестр =====\n");
+
+MapService service = MapService.Instance;
+
+// Подписываем двух наблюдателей.
+LoggingObserver logger = new();
+CountingObserver counter = new();
+service.Attach(logger);
+service.Attach(counter);
+
+// Операции над реестром — оба наблюдателя реагируют.
+PointOfInterest park = service.AddPoi(new PointOfInterest
+{
+    Name = "Центральный парк",
+    Coordinate = new Coordinate(55.7601, 37.6184),
+    Category = "Парк"
+});
+
+PointOfInterest museum = service.AddPoi(new PointOfInterest
+{
+    Name = "Музей истории",
+    Coordinate = new Coordinate(55.7580, 37.6150),
+    Category = "Музей"
+});
+
+service.RemovePoi(park.Id);
+
+System.Console.WriteLine($"\nСтатистика CountingObserver: добавлено {counter.Added}, удалено {counter.Removed}");
+
+// Отписываем логгер — дальнейшие события его не касаются.
+System.Console.WriteLine("\n--- Detach(logger) ---");
+service.Detach(logger);
+
+service.AddPoi(new PointOfInterest
+{
+    Name = "Кофейня на углу",
+    Coordinate = new Coordinate(55.7612, 37.6205),
+    Category = "Кафе"
+});
+
+System.Console.WriteLine($"\nИтог: добавлено {counter.Added}, удалено {counter.Removed}");
+
+// ==================== STATE ====================
+System.Console.WriteLine("\n\n===== Состояние: жизненный цикл точки =====\n");
+
+PoiContext poi = new("Кофейня на углу");
+System.Console.WriteLine(poi.Describe());
+
+// В Draft можно редактировать.
+poi.Edit("Кофейня на углу (уточнено)");
+System.Console.WriteLine(poi.Describe());
+
+// Публикуем — переход в Published.
+poi.Publish();
+System.Console.WriteLine(poi.Describe());
+
+// В Published редактирование запрещено.
+poi.Edit("Попытка изменить");
+System.Console.WriteLine(poi.Describe());
+
+// Архивируем — переход в Archived.
+poi.Archive();
+System.Console.WriteLine(poi.Describe());
+
+// Из архива можно вернуться в Draft.
+poi.ResetToDraft();
+System.Console.WriteLine(poi.Describe());
+
+// Снова можно редактировать.
+poi.Edit("Снова черновик");
+System.Console.WriteLine(poi.Describe());
