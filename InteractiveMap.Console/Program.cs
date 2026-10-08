@@ -4,6 +4,7 @@ using InteractiveMap.Console.Bridge;
 using InteractiveMap.Console.Commands;
 using InteractiveMap.Console.Composite;
 using InteractiveMap.Console.Decorator;
+using InteractiveMap.Console.Export;
 using InteractiveMap.Console.Facade;
 using InteractiveMap.Console.Factories;
 using InteractiveMap.Console.Flyweight;
@@ -15,6 +16,7 @@ using InteractiveMap.Console.Observer;
 using InteractiveMap.Console.Proxies;
 using InteractiveMap.Console.Services;
 using InteractiveMap.Console.State;
+using InteractiveMap.Console.Strategy;
 using InteractiveMap.Console.Validation;
 
 MapService mapService = MapService.Instance;
@@ -475,75 +477,119 @@ void Lab9()
     System.Console.WriteLine("  " + originator.Describe());
 }
 
-// ==================== OBSERVER ====================
-System.Console.WriteLine("===== Наблюдатель: подписка на реестр =====\n");
+void Lab10()
+{
+    // ==================== OBSERVER ====================
+    System.Console.WriteLine("===== Наблюдатель: подписка на реестр =====\n");
 
-MapService service = MapService.Instance;
+    MapService service = MapService.Instance;
 
-// Подписываем двух наблюдателей.
-LoggingObserver logger = new();
-CountingObserver counter = new();
-service.Attach(logger);
-service.Attach(counter);
+    // Подписываем двух наблюдателей.
+    LoggingObserver logger = new();
+    CountingObserver counter = new();
+    service.Attach(logger);
+    service.Attach(counter);
 
-// Операции над реестром — оба наблюдателя реагируют.
-PointOfInterest park = service.AddPoi(new PointOfInterest
+    // Операции над реестром — оба наблюдателя реагируют.
+    PointOfInterest park = service.AddPoi(new PointOfInterest
+    {
+        Name = "Центральный парк",
+        Coordinate = new Coordinate(55.7601, 37.6184),
+        Category = "Парк"
+    });
+
+    PointOfInterest museum = service.AddPoi(new PointOfInterest
+    {
+        Name = "Музей истории",
+        Coordinate = new Coordinate(55.7580, 37.6150),
+        Category = "Музей"
+    });
+
+    service.RemovePoi(park.Id);
+
+    System.Console.WriteLine($"\nСтатистика CountingObserver: добавлено {counter.Added}, удалено {counter.Removed}");
+
+    // Отписываем логгер — дальнейшие события его не касаются.
+    System.Console.WriteLine("\n--- Detach(logger) ---");
+    service.Detach(logger);
+
+    service.AddPoi(new PointOfInterest
+    {
+        Name = "Кофейня на углу",
+        Coordinate = new Coordinate(55.7612, 37.6205),
+        Category = "Кафе"
+    });
+
+    System.Console.WriteLine($"\nИтог: добавлено {counter.Added}, удалено {counter.Removed}");
+
+    // ==================== STATE ====================
+    System.Console.WriteLine("\n\n===== Состояние: жизненный цикл точки =====\n");
+
+    PoiContext poi = new("Кофейня на углу");
+    System.Console.WriteLine(poi.Describe());
+
+    // В Draft можно редактировать.
+    poi.Edit("Кофейня на углу (уточнено)");
+    System.Console.WriteLine(poi.Describe());
+
+    // Публикуем — переход в Published.
+    poi.Publish();
+    System.Console.WriteLine(poi.Describe());
+
+    // В Published редактирование запрещено.
+    poi.Edit("Попытка изменить");
+    System.Console.WriteLine(poi.Describe());
+
+    // Архивируем — переход в Archived.
+    poi.Archive();
+    System.Console.WriteLine(poi.Describe());
+
+    // Из архива можно вернуться в Draft.
+    poi.ResetToDraft();
+    System.Console.WriteLine(poi.Describe());
+
+    // Снова можно редактировать.
+    poi.Edit("Снова черновик");
+    System.Console.WriteLine(poi.Describe());
+}
+
+PointOfInterest park = mapService.AddPoi(new PointOfInterest
 {
     Name = "Центральный парк",
     Coordinate = new Coordinate(55.7601, 37.6184),
     Category = "Парк"
 });
 
-PointOfInterest museum = service.AddPoi(new PointOfInterest
+PointOfInterest museum = mapService.AddPoi(new PointOfInterest
 {
     Name = "Музей истории",
     Coordinate = new Coordinate(55.7580, 37.6150),
     Category = "Музей"
 });
 
-service.RemovePoi(park.Id);
+// ==================== STRATEGY ====================
+System.Console.WriteLine("===== Стратегия: взаимозаменяемые алгоритмы =====\n");
 
-System.Console.WriteLine($"\nСтатистика CountingObserver: добавлено {counter.Added}, удалено {counter.Removed}");
+NavigationService navigation = new(mapService, new HaversineStrategy());
+System.Console.WriteLine($"Стратегия: {navigation.CurrentStrategy}");
+System.Console.WriteLine($"Расстояние парк -> музей: {navigation.Distance(park.Id, museum.Id):0.0000} км");
 
-// Отписываем логгер — дальнейшие события его не касаются.
-System.Console.WriteLine("\n--- Detach(logger) ---");
-service.Detach(logger);
+// Меняем стратегию в работающем прилоожении - Context не меняется.
+navigation.SetStrategy(new ManhattanStrategy());
+System.Console.WriteLine($"\nСтратегия: {navigation.CurrentStrategy}");
+System.Console.WriteLine($"Расстояние парк -> музей: {navigation.Distance(park.Id, museum.Id):0.0000} км");
 
-service.AddPoi(new PointOfInterest
-{
-    Name = "Кофейня на углу",
-    Coordinate = new Coordinate(55.7612, 37.6205),
-    Category = "Кафе"
-});
+// ==================== TEMPLATE METHOD ====================
+System.Console.WriteLine("\n\n===== Шаблонный метод: единый скелет экспорта =====\n");
 
-System.Console.WriteLine($"\nИтог: добавлено {counter.Added}, удалено {counter.Removed}");
+MapExporter txt = new TxtExporter();
+System.Console.WriteLine("--- TXT ---");
+System.Console.WriteLine(txt.Export(mapService.All));
 
-// ==================== STATE ====================
-System.Console.WriteLine("\n\n===== Состояние: жизненный цикл точки =====\n");
+MapExporter csv = new CsvExporter();
+System.Console.WriteLine("\n--- CSV ---");
+System.Console.WriteLine(csv.Export(mapService.All));
 
-PoiContext poi = new("Кофейня на углу");
-System.Console.WriteLine(poi.Describe());
-
-// В Draft можно редактировать.
-poi.Edit("Кофейня на углу (уточнено)");
-System.Console.WriteLine(poi.Describe());
-
-// Публикуем — переход в Published.
-poi.Publish();
-System.Console.WriteLine(poi.Describe());
-
-// В Published редактирование запрещено.
-poi.Edit("Попытка изменить");
-System.Console.WriteLine(poi.Describe());
-
-// Архивируем — переход в Archived.
-poi.Archive();
-System.Console.WriteLine(poi.Describe());
-
-// Из архива можно вернуться в Draft.
-poi.ResetToDraft();
-System.Console.WriteLine(poi.Describe());
-
-// Снова можно редактировать.
-poi.Edit("Снова черновик");
-System.Console.WriteLine(poi.Describe());
+MapExporter json = new JsonExporter();
+System.Console.WriteLine("\n--- JSON ---");
+System.Console.WriteLine(json.Export(mapService.All));
