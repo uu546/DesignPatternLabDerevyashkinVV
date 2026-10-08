@@ -1,11 +1,13 @@
 ﻿using InteractiveMap.Console.Abstractions;
 using InteractiveMap.Console.Adapters;
 using InteractiveMap.Console.Bridge;
+using InteractiveMap.Console.Commands;
 using InteractiveMap.Console.Composite;
 using InteractiveMap.Console.Decorator;
 using InteractiveMap.Console.Facade;
 using InteractiveMap.Console.Factories;
 using InteractiveMap.Console.Flyweight;
+using InteractiveMap.Console.Iterators;
 using InteractiveMap.Console.Models;
 using InteractiveMap.Console.Proxies;
 using InteractiveMap.Console.Services;
@@ -248,46 +250,108 @@ void Lab5()
     System.Console.WriteLine($"Экономия по категориям: {points.Count - CategoryFactory.CacheSize} объектов");
 }
 
-// Заполняем реестр через MapService (Singleton из Lab1).
-MapService service = MapService.Instance;
-
-PointOfInterest park = service.AddPoi(new PointOfInterest { Name = "Центральный парк", Coordinate = new Coordinate(55.7601, 37.6184) });
-PointOfInterest museum = service.AddPoi(new PointOfInterest { Name = "Музей истории", Coordinate = new Coordinate(55.7580, 37.6150) });
-PointOfInterest cafe = service.AddPoi(new PointOfInterest { Name = "Кофейня на углу", Coordinate = new Coordinate(55.7612, 37.6205) });
-
-System.Console.WriteLine("===== Заместитель (Caching Proxy) =====\n");
-
-// 1. Работаем напрямую через RealSubject (без кэша).
-IDistanceCalculator realOnly = service;
-System.Console.WriteLine("--- Без прокси ---");
+void Lab6()
 {
-    double d = realOnly.GetDistance(park.Id, museum.Id);
-    System.Console.WriteLine($"{d:0.0000} км");
+
+    // Заполняем реестр через MapService (Singleton из Lab1).
+    MapService service = MapService.Instance;
+
+    PointOfInterest park = service.AddPoi(new PointOfInterest { Name = "Центральный парк", Coordinate = new Coordinate(55.7601, 37.6184) });
+    PointOfInterest museum = service.AddPoi(new PointOfInterest { Name = "Музей истории", Coordinate = new Coordinate(55.7580, 37.6150) });
+    PointOfInterest cafe = service.AddPoi(new PointOfInterest { Name = "Кофейня на углу", Coordinate = new Coordinate(55.7612, 37.6205) });
+
+    System.Console.WriteLine("===== Заместитель (Caching Proxy) =====\n");
+
+    // 1. Работаем напрямую через RealSubject (без кэша).
+    IDistanceCalculator realOnly = service;
+    System.Console.WriteLine("--- Без прокси ---");
+    {
+        double d = realOnly.GetDistance(park.Id, museum.Id);
+        System.Console.WriteLine($"{d:0.0000} км");
+    }
+
+    // 2. Работаем через CachingProxy.
+    IDistanceCalculator proxy = new CachingDistanceProxy(service);
+    System.Console.WriteLine("\n--- С прокси ---");
+    {
+        double d = proxy.GetDistance(park.Id, museum.Id);
+        System.Console.WriteLine($"{d:0.0000} км");
+    }
+
+    // 3. Симметрия: (a,b) и (b,a) должны дать один и тот же кэш-ключ.
+    System.Console.WriteLine("\n--- Симметрия: (park, museum) и (museum, park) ---");
+    double ab = proxy.GetDistance(park.Id, museum.Id);
+    double ba = proxy.GetDistance(museum.Id, park.Id);
+    System.Console.WriteLine($"  (park, museum) = {ab:0.0000}");
+    System.Console.WriteLine($"  (museum, park) = {ba:0.0000}");
+
+    // 4. Разные пары — промахи кэша.
+    System.Console.WriteLine("\n--- Добавляем новую пару (park, cafe) ---");
+    double pc = proxy.GetDistance(park.Id, cafe.Id);
+    System.Console.WriteLine($"  (park, cafe) = {pc:0.0000}");
+
+    // 5. Итоговая статистика.
+    CachingDistanceProxy stats = (CachingDistanceProxy)proxy;
+    System.Console.WriteLine("\n===== Статистика прокси =====");
+    System.Console.WriteLine($"  попаданий в кэш (hits):  {stats.Hits}");
+    System.Console.WriteLine($"  промахов (misses):       {stats.Misses}");
+    System.Console.WriteLine($"  размер кэша:             {stats.CacheSize}");
 }
 
-// 2. Работаем через CachingProxy.
-IDistanceCalculator proxy = new CachingDistanceProxy(service);
-System.Console.WriteLine("\n--- С прокси ---");
+CommandInvoker invoker = new();
+
+System.Console.WriteLine("===== Команда: журнал операций с Undo =====\n");
+
+// Выполняем команды через Invoker.
+invoker.Execute(new AddPoiCommand(mapService,
+    new PointOfInterest { Name = "Центральный парк", Category = "Парк", Coordinate = new Coordinate(55.7601, 37.6184) }));
+
+invoker.Execute(new AddPoiCommand(mapService,
+    new PointOfInterest { Name = "Музей истории", Category = "Музей", Coordinate = new Coordinate(55.7580, 37.6150) }));
+
+invoker.Execute(new AddPoiCommand(mapService,
+    new PointOfInterest { Name = "Кофейня на углу", Category = "Кафе", Coordinate = new Coordinate(55.7612, 37.6205) }));
+
+System.Console.WriteLine($"После 3 добавлений (всего точек в реестре: {mapService.All.Count}):");
+foreach (var p in mapService.All) System.Console.WriteLine("  " + p);
+
+// Отменяем последнее действие.
+System.Console.WriteLine("\n--- UndoLast() ---");
+invoker.UndoLast();
+
+System.Console.WriteLine($"После отмены (осталось точек: {mapService.All.Count}):");
+foreach (var p in mapService.All) System.Console.WriteLine("  " + p);
+
+// Удаление с откатом.
+System.Console.WriteLine("\n--- Команда RemovePoiCommand для #1 + Undo ---");
+invoker.Execute(new RemovePoiCommand(mapService, poiId: 1));
+System.Console.WriteLine($"После удаления #1 (всего: {mapService.All.Count}):");
+foreach (var p in mapService.All) System.Console.WriteLine("  " + p);
+
+invoker.UndoLast();
+System.Console.WriteLine($"После отмены удаления (всего: {mapService.All.Count}):");
+foreach (var p in mapService.All) System.Console.WriteLine("  " + p);
+
+// ==================== ITERATOR ====================
+System.Console.WriteLine("\n\n===== Итератор: обход с фильтром по категории =====\n");
+
+// Обход всех.
+System.Console.WriteLine("--- Все точки (без фильтра) ---");
+IPoiIterator allIterator = mapService.CreateIterator();
+while (allIterator.HasNext())
 {
-    double d = proxy.GetDistance(park.Id, museum.Id);
-    System.Console.WriteLine($"{d:0.0000} км");
+    System.Console.WriteLine("  " + allIterator.Next().Name);
 }
 
-// 3. Симметрия: (a,b) и (b,a) должны дать один и тот же кэш-ключ.
-System.Console.WriteLine("\n--- Симметрия: (park, museum) и (museum, park) ---");
-double ab = proxy.GetDistance(park.Id, museum.Id);
-double ba = proxy.GetDistance(museum.Id, park.Id);
-System.Console.WriteLine($"  (park, museum) = {ab:0.0000}");
-System.Console.WriteLine($"  (museum, park) = {ba:0.0000}");
+// Обход только категории "Музей".
+System.Console.WriteLine("\n--- Только категория \"Музей\" ---");
+IPoiIterator museumIterator = mapService.CreateIterator("Музей");
+while (museumIterator.HasNext())
+{
+    System.Console.WriteLine("  " + museumIterator.Next().Name);
+}
 
-// 4. Разные пары — промахи кэша.
-System.Console.WriteLine("\n--- Добавляем новую пару (park, cafe) ---");
-double pc = proxy.GetDistance(park.Id, cafe.Id);
-System.Console.WriteLine($"  (park, cafe) = {pc:0.0000}");
-
-// 5. Итоговая статистика.
-CachingDistanceProxy stats = (CachingDistanceProxy)proxy;
-System.Console.WriteLine("\n===== Статистика прокси =====");
-System.Console.WriteLine($"  попаданий в кэш (hits):  {stats.Hits}");
-System.Console.WriteLine($"  промахов (misses):       {stats.Misses}");
-System.Console.WriteLine($"  размер кэша:             {stats.CacheSize}");
+// Обход несуществующей категории — итератор сразу пуст.
+System.Console.WriteLine("\n--- Категория \"Ресторан\" (нет таких) ---");
+IPoiIterator noneIterator = mapService.CreateIterator("Ресторан");
+System.Console.WriteLine($"  HasNext в начале: {noneIterator.HasNext()}");

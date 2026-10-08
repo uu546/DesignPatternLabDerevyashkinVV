@@ -1,9 +1,10 @@
 ﻿using InteractiveMap.Console.Abstractions;
+using InteractiveMap.Console.Iterators;
 using InteractiveMap.Console.Models;
 
 namespace InteractiveMap.Console.Services;
 
-public sealed class MapService : IDistanceCalculator
+public sealed class MapService : IDistanceCalculator, IPoiCollection
 {
     private readonly List<PointOfInterest> _pois = new();
 
@@ -22,7 +23,7 @@ public sealed class MapService : IDistanceCalculator
     {
         if (poi is null)
             throw new ArgumentException("Переданная точка по интересам не может быть пустой", nameof(poi));
-      
+
         PointOfInterest result = new()
         {
             Id = _nextId++,
@@ -93,4 +94,14 @@ public sealed class MapService : IDistanceCalculator
     /// <param name="deg">Градусы.</param>
     /// <returns>Приведенные градусы.</returns>
     private double ToRadians(double deg) => deg * Math.PI / 180.0;
+
+    public IPoiIterator CreateIterator()
+    {
+        return new CategoryFilterIterator(All, category: null);
+    }
+
+    public IPoiIterator CreateIterator(string category)
+    {
+        return new CategoryFilterIterator(All, category);
+    }
 }
