@@ -1,4 +1,8 @@
 <Solution>
+  <Folder Name="/Lr13.Microservices/">
+    <Project Path="Lr13.Microservices/OrderService.Api/OrderService.Api.csproj" Id="5e242816-c99b-48bd-8250-4d3c968d2f98" />
+    <Project Path="Lr13.Microservices/PaymentService.Api/PaymentService.Api.csproj" Id="32c70162-7630-4162-b8e8-f32d4b095ce0" />
+  </Folder>
   <Folder Name="/Patterns/" />
   <Project Path="InteractiveMap.Console/InteractiveMap.Console.csproj" Id="5c8d2328-f5d7-447f-bdcf-ce65a81ff6ec" />
   <Project Path="Lr12.Mvc/Lr12.Mvc.csproj" Id="43a47f38-dbbe-4c5b-a29e-43aa19d2d9e0" />
