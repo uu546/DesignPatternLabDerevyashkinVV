@@ -6,4 +6,5 @@
   <Folder Name="/Patterns/" />
   <Project Path="InteractiveMap.Console/InteractiveMap.Console.csproj" Id="5c8d2328-f5d7-447f-bdcf-ce65a81ff6ec" />
   <Project Path="Lr12.Mvc/Lr12.Mvc.csproj" Id="43a47f38-dbbe-4c5b-a29e-43aa19d2d9e0" />
+  <Project Path="Lr15/Lr15.csproj" Id="3178bdb9-9e53-48a3-8be3-8e340ecc3ad8" />
 </Solution>
