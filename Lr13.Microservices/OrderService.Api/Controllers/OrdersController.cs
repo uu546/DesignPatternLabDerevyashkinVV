@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using OrderService.Api.Models;
+using OrderService.Api.Repositories;
 using OrderService.Api.Sagas;
 
 namespace OrderService.Api.Controllers
@@ -20,10 +21,10 @@ namespace OrderService.Api.Controllers
     [Route("orders")]
     public class OrdersController : ControllerBase
     {
-        private readonly List<Order> _orders;
+        private readonly OrderRepository _orders;
         private readonly CheckoutSaga _saga;
 
-        public OrdersController(List<Order> orders, CheckoutSaga saga)
+        public OrdersController(OrderRepository orders, CheckoutSaga saga)
         {
             _orders = orders;
             _saga = saga;
@@ -34,13 +35,11 @@ namespace OrderService.Api.Controllers
         public async Task<IActionResult> Checkout([FromBody] CheckoutRequest request)
         {
             string log = await _saga.CheckoutAsync(request.Name, request.Amount, request.SimulateStockFailure);
-
             return Ok(new { log });
         }
 
-        /// <summary>Просмотр текущих заказов (для проверки компенсаций).</summary>
+        /// <summary>Просмотр текущих заказов.</summary>
         [HttpGet]
-        [Route("All")]
-        public IActionResult All() => Ok(_orders);
+        public IActionResult All() => Ok(_orders.All);
     }
 }

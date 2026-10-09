@@ -1,12 +1,12 @@
 using OrderService.Api.HttpClients;
-using OrderService.Api.Models;
+using OrderService.Api.Repositories;
 using OrderService.Api.Sagas;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 
-builder.Services.AddSingleton<List<Order>>();
+builder.Services.AddSingleton<OrderRepository>();
 
 builder.Services.AddHttpClient<PaymentClient>();
 
